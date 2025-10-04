@@ -51,7 +51,7 @@ Install python dev packages, lirc, cec & paho-mqtt modules
 sudo apt-get update
 sudo apt-get install build-essential git lirc python3 python3-dev python3-setuptools python3-pip python3-wheel python3-build python3-venv python3-paho-mqtt python3-cec
 sudo pip install /usr/share/lirc/lirc-*.tar.gz
-git clone https://github.com/michaelarnauts/cec-mqtt-bridge.git
+git clone https://github.com/ballle98/cec-mqtt-bridge.git
 cd cec-mqtt-bridge/
 ./contrib/debian-ubuntu-install.sh
 sudo vi /etc/cec-mqtt-bridge.ini
