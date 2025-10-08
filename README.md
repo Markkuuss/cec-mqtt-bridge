@@ -117,3 +117,4 @@ You can either copy `config.default.ini` to `config.ini` and adjust its properti
 * https://www.hdmi.org/docs/Hdmi13aSpecs
 * https://github.com/Pulse-Eight/libcec/blob/master/include/cec.h
 * https://github.com/Pulse-Eight/libcec/blob/master/src/pyCecClient/pyCecClient.py
+* https://github.com/ballle98/cec-lirc
