@@ -136,6 +136,38 @@ class HdmiCec:
         self._mqtt_send(f'cec/device/{device}/power', 'standby')
         self.cec_client.StandbyDevices(device)
 
+    def _parse_key_code(self, key: str) -> int:
+        key_value = key.strip()
+        if not key_value:
+            raise ValueError("CEC key is empty")
+
+        if key_value.lower().startswith('0x'):
+            key_code = int(key_value, 16)
+        elif re.fullmatch(r'[0-9a-fA-F]{1,2}', key_value) and re.search(r'[a-fA-F]', key_value):
+            key_code = int(key_value, 16)
+        elif key_value.isdigit():
+            key_code = int(key_value, 10)
+        else:
+            const_key = re.sub(r'[^A-Z0-9]+', '_', key_value.upper())
+            const_name = f'CEC_USER_CONTROL_CODE_{const_key}'
+            if cec is not None and hasattr(cec, const_name):
+                key_code = int(getattr(cec, const_name))
+            else:
+                raise ValueError(f"Unknown CEC key '{key}'")
+
+        if not 0 <= key_code <= 0xFF:
+            raise ValueError(f"CEC key out of range: {key_code}")
+
+        return key_code
+
+    def key_press(self, device: int, key: str, duration: float = 0.1):
+        """Send a CEC user control key press to the specified device."""
+        key_code = self._parse_key_code(key)
+        LOGGER.debug('Key press %s (%02x) to device %d', key, key_code, device)
+        self.tx_command(f'44:{key_code:02x}', device)
+        time.sleep(max(duration, 0.01))
+        self.tx_command('45', device)
+
     def volume_up(self, amount=1, update=True):
         """Increase the volume on the AVR."""
         if amount >= 10:
