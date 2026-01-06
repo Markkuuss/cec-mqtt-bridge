@@ -8,7 +8,7 @@ import re
 import threading
 import time
 import os
-from typing import List
+from typing import List, Optional
 try:
     import cec
 except ModuleNotFoundError:
@@ -21,23 +21,29 @@ DEFAULT_CONFIGURATION = {
     'port': '',
     'devices': '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14',
     'name': 'CEC Bridge',
-    'refresh': '10'
+    'refresh': '10',
+    'keypress_duration_ms': '200',
+    'keypress_gap_ms': '0'
 }
 
 
 class HdmiCec:
     """HDMI CEC interface class"""
-    def __init__(self, port: str, name: str, devices: List[int], mqtt_send: callable):
+    def __init__(self, port: str, name: str, devices: List[int], mqtt_send: callable,
+                 keypress_duration_ms: int = 200, keypress_gap_ms: int = 0):
         if cec is None:
             raise RuntimeError("CEC support is not available (python-cec not installed).")
         self._mqtt_send = mqtt_send
         self.devices = devices
         self.volume_correction = 1  # 80/100 = max volume of avr / reported max volume
+        self.keypress_duration = max(0.0, keypress_duration_ms / 1000.0)
+        self.keypress_gap = max(0.0, keypress_gap_ms / 1000.0)
 
         self.setting_volume = False
         self.refreshing = False
         self.volume_update = threading.Event()
         self.volume_update.clear()
+        self._key_lock = threading.Lock()
 
         self.cec_config = cec.libcec_configuration()
         self.cec_config.strDeviceName = name
@@ -140,6 +146,44 @@ class HdmiCec:
         LOGGER.debug('Power off device %d', device)
         self._mqtt_send(f'cec/device/{device}/power', 'standby')
         self.cec_client.StandbyDevices(device)
+
+    def _parse_key_code(self, key: str) -> int:
+        key_value = key.strip()
+        if not key_value:
+            raise ValueError("CEC key is empty")
+
+        if key_value.lower().startswith('0x'):
+            key_code = int(key_value, 16)
+        elif re.fullmatch(r'[0-9a-fA-F]{1,2}', key_value) and re.search(r'[a-fA-F]', key_value):
+            key_code = int(key_value, 16)
+        elif key_value.isdigit():
+            key_code = int(key_value, 10)
+        else:
+            const_key = re.sub(r'[^A-Z0-9]+', '_', key_value.upper())
+            const_name = f'CEC_USER_CONTROL_CODE_{const_key}'
+            if cec is not None and hasattr(cec, const_name):
+                key_code = int(getattr(cec, const_name))
+            else:
+                raise ValueError(f"Unknown CEC key '{key}'")
+
+        if not 0 <= key_code <= 0xFF:
+            raise ValueError(f"CEC key out of range: {key_code}")
+
+        return key_code
+
+    def key_press(self, device: int, key: str, duration: Optional[float] = None):
+        """Send a CEC user control key press to the specified device."""
+        key_code = self._parse_key_code(key)
+        LOGGER.debug('Key press %s (%02x) to device %d', key, key_code, device)
+        if duration is None:
+            duration = self.keypress_duration
+        with self._key_lock:
+            self.tx_command(f'44:{key_code:02x}', device)
+            if duration > 0:
+                time.sleep(max(duration, 0.01))
+                self.tx_command('45', device)
+            if self.keypress_gap > 0:
+                time.sleep(self.keypress_gap)
 
     def volume_up(self, amount=1, update=True):
         """Increase the volume on the AVR."""

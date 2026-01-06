@@ -95,7 +95,9 @@ class Bridge:
                 name=self.config['cec']['name'],
                 devices=[
                     int(x) for x in self.config['cec']['devices'].split(',')],
-                mqtt_send=self.mqtt_publish)
+                mqtt_send=self.mqtt_publish,
+                keypress_duration_ms=int(self.config['cec']['keypress_duration_ms']),
+                keypress_gap_ms=int(self.config['cec']['keypress_gap_ms']))
 
         # Setup IR
         if int(self.config['ir']['enabled']) == 1:
@@ -148,6 +150,7 @@ class Bridge:
         if int(self.config['cec']['enabled']) == 1:
             client.subscribe([
                 (self.config['mqtt']['prefix'] + '/cec/device/+/power/set', 0),
+                (self.config['mqtt']['prefix'] + '/cec/device/+/key/set', 0),
                 (self.config['mqtt']['prefix'] + '/cec/audio/volume/set', 0),
                 (self.config['mqtt']['prefix'] + '/cec/audio/mute/set', 0),
                 (self.config['mqtt']['prefix'] + '/cec/tx', 0),
@@ -208,6 +211,11 @@ class Bridge:
                         self.cec_class.power_off(device)
                     else:
                         raise ValueError(f"Unknown power command: {topic} {action}")
+                elif topic[3] == 'key':
+                    try:
+                        self.cec_class.key_press(device, action)
+                    except ValueError as exc:
+                        raise ValueError(f"Unknown key command: {topic} {action}")
 
             elif topic[1] == 'audio':
                 if topic[2] == 'volume':

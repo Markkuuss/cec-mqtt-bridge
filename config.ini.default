@@ -47,6 +47,12 @@ enabled=1
 ; device power state refresh time in seconds (default=10) (min 10) (0 disables refresh)
 ;refresh=10
 
+; CEC key press duration in milliseconds (default=200) (0 disables key release)
+;keypress_duration_ms=200
+
+; Minimum gap between key presses in milliseconds (default=0)
+;keypress_gap_ms=0
+
 ;
 ; LIRC configuration
 ;
