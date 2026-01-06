@@ -8,7 +8,7 @@ cd ..
 python3 -m build
 
 sudo mkdir -p /opt/cec-mqtt-bridge
-sudo python3 -m venv "$VENV_DIR"
+sudo python3 -m venv --system-site-packages "$VENV_DIR"
 sudo "$VENV_DIR/bin/python" -m pip install --upgrade pip
 sudo "$VENV_DIR/bin/pip" install --force-reinstall dist/cec_mqtt_bridge-*.whl
 
