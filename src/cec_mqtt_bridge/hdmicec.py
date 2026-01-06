@@ -8,7 +8,7 @@ import re
 import threading
 import time
 import os
-from typing import List
+from typing import List, Optional
 import cec
 
 LOGGER = logging.getLogger(__name__)
@@ -18,21 +18,25 @@ DEFAULT_CONFIGURATION = {
     'port': '',
     'devices': '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14',
     'name': 'CEC Bridge',
-    'refresh': '10'
+    'refresh': '10',
+    'keypress_duration_ms': '200'
 }
 
 
 class HdmiCec:
     """HDMI CEC interface class"""
-    def __init__(self, port: str, name: str, devices: List[int], mqtt_send: callable):
+    def __init__(self, port: str, name: str, devices: List[int], mqtt_send: callable,
+                 keypress_duration_ms: int = 200):
         self._mqtt_send = mqtt_send
         self.devices = devices
         self.volume_correction = 1  # 80/100 = max volume of avr / reported max volume
+        self.keypress_duration = max(0.0, keypress_duration_ms / 1000.0)
 
         self.setting_volume = False
         self.refreshing = False
         self.volume_update = threading.Event()
         self.volume_update.clear()
+        self._key_lock = threading.Lock()
 
         self.cec_config = cec.libcec_configuration()
         self.cec_config.strDeviceName = name
@@ -160,13 +164,17 @@ class HdmiCec:
 
         return key_code
 
-    def key_press(self, device: int, key: str, duration: float = 0.1):
+    def key_press(self, device: int, key: str, duration: Optional[float] = None):
         """Send a CEC user control key press to the specified device."""
         key_code = self._parse_key_code(key)
         LOGGER.debug('Key press %s (%02x) to device %d', key, key_code, device)
-        self.tx_command(f'44:{key_code:02x}', device)
-        time.sleep(max(duration, 0.01))
-        self.tx_command('45', device)
+        if duration is None:
+            duration = self.keypress_duration
+        with self._key_lock:
+            self.tx_command(f'44:{key_code:02x}', device)
+            if duration > 0:
+                time.sleep(max(duration, 0.01))
+                self.tx_command('45', device)
 
     def volume_up(self, amount=1, update=True):
         """Increase the volume on the AVR."""

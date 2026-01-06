@@ -95,7 +95,8 @@ class Bridge:
                 name=self.config['cec']['name'],
                 devices=[
                     int(x) for x in self.config['cec']['devices'].split(',')],
-                mqtt_send=self.mqtt_publish)
+                mqtt_send=self.mqtt_publish,
+                keypress_duration_ms=int(self.config['cec']['keypress_duration_ms']))
 
         # Setup IR
         if int(self.config['ir']['enabled']) == 1:
