@@ -19,18 +19,20 @@ DEFAULT_CONFIGURATION = {
     'devices': '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14',
     'name': 'CEC Bridge',
     'refresh': '10',
-    'keypress_duration_ms': '200'
+    'keypress_duration_ms': '200',
+    'keypress_gap_ms': '0'
 }
 
 
 class HdmiCec:
     """HDMI CEC interface class"""
     def __init__(self, port: str, name: str, devices: List[int], mqtt_send: callable,
-                 keypress_duration_ms: int = 200):
+                 keypress_duration_ms: int = 200, keypress_gap_ms: int = 0):
         self._mqtt_send = mqtt_send
         self.devices = devices
         self.volume_correction = 1  # 80/100 = max volume of avr / reported max volume
         self.keypress_duration = max(0.0, keypress_duration_ms / 1000.0)
+        self.keypress_gap = max(0.0, keypress_gap_ms / 1000.0)
 
         self.setting_volume = False
         self.refreshing = False
@@ -175,6 +177,8 @@ class HdmiCec:
             if duration > 0:
                 time.sleep(max(duration, 0.01))
                 self.tx_command('45', device)
+            if self.keypress_gap > 0:
+                time.sleep(self.keypress_gap)
 
     def volume_up(self, amount=1, update=True):
         """Increase the volume on the AVR."""
