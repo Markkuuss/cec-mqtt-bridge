@@ -8,7 +8,8 @@ After=network-online.target
 [Service]
 Type=simple
 ExecStart=/opt/cec-mqtt-bridge/venv/bin/cec-mqtt-bridge
+Restart=always
+RestartSec=300
 
 [Install]
 WantedBy=multi-user.target
-
