@@ -2,7 +2,6 @@ build/
 dist/
 .idea/
 config.ini
-lircrc
 __pycache__/
 *.log
 /.project

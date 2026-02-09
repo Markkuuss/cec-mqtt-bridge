@@ -1,7 +1,8 @@
 cec-mqtt-bridge
 ===============
 
-A HDMI-CEC and IR to MQTT bridge written in Python 3 for connecting your AV-devices to your Home Automation system. You can control and monitor power status and volume.
+A HDMI-CEC to MQTT bridge written in Python 3 for connecting your AV-devices to your Home Automation system. You can control and monitor power status and volume.
+CEC is required; there is no LIRC fallback.
 
 # Features
 * HDMI-CEC
@@ -9,9 +10,6 @@ A HDMI-CEC and IR to MQTT bridge written in Python 3 for connecting your AV-devi
   * Volume control (up/down/specific) and feedback
   * Relay HDMI-CEC messages from HDMI to broker (RX)
   * Relay HDMI-CEC messages from broker to HDMI (TX)
-* IR
-  * Relay IR keypresses from IR to broker (RX)
-  * Relay IR keypresses from broker to IR (TX)
 
 # Dependencies
 
@@ -28,18 +26,7 @@ A HDMI-CEC and IR to MQTT bridge written in Python 3 for connecting your AV-devi
     * "apt-get install python3-cec" OR compile the bindings yourself
   * HDMI-CEC interface device (like a [Pulse-Eight](https://www.pulse-eight.com/) device, or a Raspberry Pi)
 
-* python LIRC module
-  * lirc with python bindings (https://www.lirc.org/api-docs/html/group__python__bindings.html)
-  * **NOTE: lirc python package is not available on pypi**
-    * "apt-get install lirc"
-    * "sudo pip install /usr/share/lirc/lirc-*.tar.gz" see #18
-    * OR compile & install https://sourceforge.net/p/lirc/git/ci/master/tree/python-pkg/
-
-* lircd + hardware to receive and send IR signals
-  * cheep IR RX and TX with transistor https://www.aliexpress.us/item/2251801744452143.html
-  * to get RX and TX working see https://github.com/raspberrypi/linux/issues/2993#issuecomment-497420228
-
-# Install on Raspbian bullseye
+# Install on Raspbian bullseye (no packaging)
 
 If there is not a MQTT broker already on your network
 ```sh
@@ -50,26 +37,41 @@ Install packages and the bridge
 ```sh
 # Base packages
 sudo apt-get update
-sudo apt-get install build-essential git python3 python3-dev python3-setuptools python3-pip python3-wheel python3-build python3-venv python3-paho-mqtt python3-cec
+sudo apt-get install git python3 python3-paho-mqtt mosquitto
 
-# Optional: LIRC support (includes build helper for source installs)
-sudo apt-get install lirc liblirc-dev liblircclient-dev pkg-config
-sudo pip install /usr/share/lirc/lirc-*.tar.gz
-
-# Install the bridge
-git clone https://github.com/ballle98/cec-mqtt-bridge.git
-cd cec-mqtt-bridge/contrib/
-./debian-ubuntu-install.sh
+# Install the bridge (source only)
+git clone https://github.com/Markkuuss/cec-mqtt-bridge.git /opt/cec-mqtt-bridge
+cd /opt/cec-mqtt-bridge/scripts/
+chmod +x install.sh
+./install.sh
 sudo vi /etc/cec-mqtt-bridge.ini
 sudo systemctl restart cec-mqtt-bridge
+```
+
+## CEC Python bindings on Debian 13 (trixie)
+
+Debian 13 does not ship `python3-cec`. The install script will build libcec
+with Python bindings automatically if needed. You can also build manually:
+
+```sh
+sudo apt-get install -y git cmake build-essential swig python3-dev \
+  libudev-dev libxrandr-dev libx11-dev libgl1-mesa-dev libp8-platform-dev
+
+git clone https://github.com/Pulse-Eight/libcec.git /tmp/libcec
+cd /tmp/libcec
+mkdir -p build && cd build
+cmake .. -DSKIP_PYTHON=OFF
+make -j$(nproc)
+sudo make install
+sudo ldconfig
 ```
 
 to update
 
 ```sh
-cd cec-mqtt-bridge/
+cd /opt/cec-mqtt-bridge/
 git pull
-./contrib/debian-ubuntu-install.sh
+sudo systemctl restart cec-mqtt-bridge
 ```
 
 
@@ -85,7 +87,6 @@ The bridge subscribes to the following topics:
 | `prefix`/cec/audio/volume/set     | `integer (0-100)` / `up` / `down` | Sets the volume level of the audio system to a specific level or up/down. |
 | `prefix`/cec/audio/mute/set       | `on` / `off`                      | Mute/Unmute the the audio system.                                         |
 | `prefix`/cec/tx             | `commands`                              | Send the specified `commands` to the CEC bus. You can specify multiple commands by separating them with a space. Example: `cec/tx 15:44:41,15:45`. |
-| `prefix`/ir/`remote`/tx     | `key`                                   | Send the specified `key` of `remote` to the IR transmitter.               |
 
 The bridge publishes to the following topics:
 
@@ -103,8 +104,6 @@ The bridge publishes to the following topics:
 | `prefix`/cec/audio/volume     | `integer (0-100)` /  `unknown = 127`                      | Report volume level of the audio system.         |
 | `prefix`/cec/mute/status       | `on` / `off`                            | Report mute status of the audio system.          |
 | `prefix`/cec/rx                | `command`                               | Notify that `command` was received.              |
-| `prefix`/ir/`remote`/rx        | `key`                                   | Notify that `key` of `remote` was received. You have to configure `key` AND `remote` as config in the lircrc file.  |
-| `prefix`/ir/rx                 | `key`                                   | Notify that `key` was received. You have to configure `key` in the lircrc file. This format is used if the remote is not given in the config file.  |
 
 `id` is the address (0-15) of the device on the CEC-bus.
 
@@ -114,7 +113,7 @@ The bridge publishes to the following topics:
 
 # Configuration
 
-You can either copy `config.default.ini` to `config.ini` and adjust its properties, or alternatively declare any of those as environment variables using the format `SECTION_KEY` (e.g., `MQTT_USER`).
+You can either copy `config/cec-mqtt-bridge.ini` to `config.ini` and adjust its properties, or alternatively declare any of those as environment variables using the format `SECTION_KEY` (e.g., `MQTT_USER`).
 
 
 # Interesting links
@@ -124,4 +123,3 @@ You can either copy `config.default.ini` to `config.ini` and adjust its properti
 * https://www.hdmi.org/docs/Hdmi13aSpecs
 * https://github.com/Pulse-Eight/libcec/blob/master/include/cec.h
 * https://github.com/Pulse-Eight/libcec/blob/master/src/pyCecClient/pyCecClient.py
-* https://github.com/ballle98/cec-lirc
