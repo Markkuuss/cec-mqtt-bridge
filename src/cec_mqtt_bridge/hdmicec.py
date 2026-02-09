@@ -17,11 +17,10 @@ except ModuleNotFoundError:
 LOGGER = logging.getLogger(__name__)
 
 DEFAULT_CONFIGURATION = {
-    'enabled': 0,
     'port': '',
     'devices': '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14',
     'name': 'CEC Bridge',
-    'refresh': '10',
+    'refresh': '30',
     'keypress_duration_ms': '200',
     'keypress_gap_ms': '0'
 }
