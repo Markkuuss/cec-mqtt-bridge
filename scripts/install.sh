@@ -3,7 +3,11 @@
 set -e  # Stop on first error.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"  # Absolute path to this script's directory.
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"  # Repo root (one level up from contrib/).
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"  # Repo root (one level up from scripts/).
+
+echo "Updating repository..."
+cd "$REPO_ROOT"
+git pull || true
 
 echo "Installing base dependencies..."
 sudo apt-get update
@@ -43,5 +47,4 @@ sudo install -m 644 -C "$REPO_ROOT/systemd/cec-mqtt-bridge.service" /etc/systemd
 sudo systemctl daemon-reload
 sudo systemctl enable cec-mqtt-bridge
 sudo systemctl start cec-mqtt-bridge
-
 

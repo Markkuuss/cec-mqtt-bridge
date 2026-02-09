@@ -13,66 +13,41 @@ CEC is required; there is no LIRC fallback.
 
 # Dependencies
 
-* MQTT broker (like [Mosquitto](https://mosquitto.org/))
-  * "apt-get install mosquitto"
+* MQTT broker (Mosquitto)
+* python3-paho-mqtt
+* libcec + Python bindings (the installer builds them if missing; Debian 13 has no `python3-cec`)
+* HDMI-CEC interface device (Raspberry Pi HDMI-CEC or a Pulse-Eight adapter)
 
-* python paho-mqtt module
-  * https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html
-  * "apt-get install python3-paho-mqtt"
+# Install on Debian / Raspberry Pi OS (no packaging)
 
-* python HDMI-CEC module
-  * libcec4 with python bindings (https://github.com/Pulse-Eight/libcec)
-  * **NOTE: cec python package is not available on pypi**
-    * "apt-get install python3-cec" OR compile the bindings yourself
-  * HDMI-CEC interface device (like a [Pulse-Eight](https://www.pulse-eight.com/) device, or a Raspberry Pi)
-
-# Install on Raspbian bullseye (no packaging)
-
-If there is not a MQTT broker already on your network
 ```sh
-sudo apt-get install mosquitto
-```
-
-Install packages and the bridge
-```sh
-# Base packages
-sudo apt-get update
-sudo apt-get install git python3 python3-paho-mqtt mosquitto
-
-# Install the bridge (source only)
 git clone https://github.com/Markkuuss/cec-mqtt-bridge.git /opt/cec-mqtt-bridge
-cd /opt/cec-mqtt-bridge/scripts/
+cd /opt/cec-mqtt-bridge/scripts
 chmod +x install.sh
-./install.sh
-sudo vi /etc/cec-mqtt-bridge.ini
-sudo systemctl restart cec-mqtt-bridge
+sudo ./install.sh
 ```
+`install.sh` installs dependencies, updates the repo (`git pull`), installs the systemd unit, and starts the service.
 
-## CEC Python bindings on Debian 13 (trixie)
-
-Debian 13 does not ship `python3-cec`. The install script will build libcec
-with Python bindings automatically if needed. You can also build manually:
-
+Edit the config:
 ```sh
-sudo apt-get install -y git cmake build-essential swig python3-dev \
-  libudev-dev libxrandr-dev libx11-dev libgl1-mesa-dev libp8-platform-dev
-
-git clone https://github.com/Pulse-Eight/libcec.git /tmp/libcec
-cd /tmp/libcec
-mkdir -p build && cd build
-cmake .. -DSKIP_PYTHON=OFF
-make -j$(nproc)
-sudo make install
-sudo ldconfig
+sudo nano /etc/cec-mqtt-bridge.ini
 ```
 
-to update
-
+Start / restart:
 ```sh
-cd /opt/cec-mqtt-bridge/
-git pull
 sudo systemctl restart cec-mqtt-bridge
+sudo systemctl status cec-mqtt-bridge
 ```
+
+Update: re-run the installer (it runs `git pull` and restarts the service).
+```sh
+cd /opt/cec-mqtt-bridge/scripts
+chmod +x install.sh
+sudo ./install.sh
+```
+
+Note: On Debian 13, `python3-cec` is not available; the installer builds libcec
+Python bindings automatically if needed.
 
 
 # MQTT Topics
@@ -108,18 +83,12 @@ The bridge publishes to the following topics:
 `id` is the address (0-15) of the device on the CEC-bus.
 
 ## Examples
-* `mosquitto_pub -t media/cec/volup -m ''`
-* `mosquitto_pub -t media/cec/tx -m '15:44:42,15:45'`
+* `mosquitto_pub -t cec-mqtt/cec/volup -m ''`
+* `mosquitto_pub -t cec-mqtt/cec/tx -m '15:44:42,15:45'`
 
 # Configuration
 
-You can either copy `config/cec-mqtt-bridge.ini` to `config.ini` and adjust its properties, or alternatively declare any of those as environment variables using the format `SECTION_KEY` (e.g., `MQTT_USER`).
-
-
-# Interesting links
-* https://github.com/nvella/mqtt-cec
-* http://www.cec-o-matic.com/
-* https://kwikwai.com/knowledge-base/the-hdmi-cec-bus/
-* https://www.hdmi.org/docs/Hdmi13aSpecs
-* https://github.com/Pulse-Eight/libcec/blob/master/include/cec.h
-* https://github.com/Pulse-Eight/libcec/blob/master/src/pyCecClient/pyCecClient.py
+The service reads `/etc/cec-mqtt-bridge.ini` by default. You can either copy
+`config/cec-mqtt-bridge.ini` to `/etc/cec-mqtt-bridge.ini` and adjust its
+properties, or alternatively declare any of those as environment variables
+using the format `SECTION_KEY` (e.g., `MQTT_USER`).
