@@ -48,13 +48,16 @@ class Bridge:
 
         # Setup MQTT
         LOGGER.info("Initialising MQTT...")
-        # Pin callback API to v1 for compatibility with older callback signatures.
+        # Use the latest callback API.
         self.mqtt_client = mqtt.Client(
-            callback_api_version=mqtt.CallbackAPIVersion.VERSION1,
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=self.config["mqtt"]["name"],
         )
         self.mqtt_client.on_connect = self.mqtt_on_connect
         self.mqtt_client.on_message = mqtt_on_message
+        self.mqtt_client.on_disconnect = self.mqtt_on_disconnect
+        self.mqtt_client.on_subscribe = self.mqtt_on_subscribe
+        self.mqtt_client.on_publish = self.mqtt_on_publish
         if self.config["mqtt"]["user"]:
             self.mqtt_client.username_pw_set(
                 self.config["mqtt"]["user"], password=self.config["mqtt"]["password"]
@@ -132,7 +135,9 @@ class Bridge:
 
         return config
 
-    def mqtt_on_connect(self, client: mqtt, _userdata, _flags, ret):
+    def mqtt_on_connect(
+        self, client: mqtt, _userdata, _flags, reason_code, _properties
+    ):
         """MQTT on connect callback
 
         Args:
@@ -141,10 +146,10 @@ class Bridge:
             _flags (_type_): _description_
             ret (_type_): _description_
         """
-        if ret == 0:
+        if reason_code == 0:
             LOGGER.info("Connected successfully")
         else:
-            LOGGER.error("Connection failed with code %d", ret)
+            LOGGER.error("Connection failed with code %s", reason_code)
 
         # Subscribe to CEC commands
         client.subscribe(
@@ -161,6 +166,23 @@ class Bridge:
 
         # Publish birth message
         self.mqtt_publish("bridge/status", "online", qos=1, retain=True)
+
+    def mqtt_on_disconnect(self, _client: mqtt, _userdata, reason_code, _properties):
+        """MQTT on disconnect callback."""
+        if reason_code == 0:
+            LOGGER.info("Disconnected cleanly")
+        else:
+            LOGGER.warning("Disconnected with reason code %s", reason_code)
+
+    def mqtt_on_subscribe(
+        self, _client: mqtt, _userdata, mid, reason_codes, _properties
+    ):
+        """MQTT on subscribe callback."""
+        LOGGER.debug("Subscribed (mid=%s) reason_codes=%s", mid, reason_codes)
+
+    def mqtt_on_publish(self, _client: mqtt, _userdata, mid):
+        """MQTT on publish callback."""
+        LOGGER.debug("Published (mid=%s)", mid)
 
     def mqtt_publish(self, topic, message=None, qos=0, retain=True):
         """Publish a MQTT message prefixed with bridge prefix
