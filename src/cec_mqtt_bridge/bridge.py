@@ -180,9 +180,9 @@ class Bridge:
         """MQTT on subscribe callback."""
         LOGGER.debug("Subscribed (mid=%s) reason_codes=%s", mid, reason_codes)
 
-    def mqtt_on_publish(self, _client: mqtt, _userdata, mid):
+    def mqtt_on_publish(self, _client: mqtt, _userdata, mid, reason_code, _properties):
         """MQTT on publish callback."""
-        LOGGER.debug("Published (mid=%s)", mid)
+        LOGGER.debug("Published (mid=%s) reason_code=%s", mid, reason_code)
 
     def mqtt_publish(self, topic, message=None, qos=0, retain=True):
         """Publish a MQTT message prefixed with bridge prefix
