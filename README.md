@@ -2,7 +2,7 @@ cec-mqtt-bridge
 ===============
 
 A HDMI-CEC to MQTT bridge written in Python 3 for connecting your AV-devices to your Home Automation system. You can control and monitor power status and volume.
-CEC is required; there is no LIRC fallback.
+CEC is required.
 
 # Features
 * HDMI-CEC
@@ -21,7 +21,7 @@ CEC is required; there is no LIRC fallback.
 # Install on Debian / Raspberry Pi OS (no packaging)
 
 ```sh
-git clone https://github.com/Markkuuss/cec-mqtt-bridge.git /opt/cec-mqtt-bridge
+git clone --branch integration --single-branch https://github.com/Markkuuss/cec-mqtt-bridge.git /opt/cec-mqtt-bridge
 cd /opt/cec-mqtt-bridge/scripts
 chmod +x install.sh
 sudo ./install.sh

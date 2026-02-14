@@ -18,12 +18,12 @@ except ModuleNotFoundError:
 LOGGER = logging.getLogger(__name__)
 
 DEFAULT_CONFIGURATION = {
-    "port": "",
+    "port": "Linux",
     "devices": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
     "name": "CEC Bridge",
     "refresh": "30",
-    "keypress_duration_ms": "200",
-    "keypress_gap_ms": "0",
+    "keypress_duration_ms": "0",
+    "keypress_gap_ms": "200",
 }
 
 
@@ -36,8 +36,8 @@ class HdmiCec:
         name: str,
         devices: List[int],
         mqtt_send: callable,
-        keypress_duration_ms: int = 200,
-        keypress_gap_ms: int = 0,
+        keypress_duration_ms: int = 0,
+        keypress_gap_ms: int = 200,
     ):
         if cec is None:
             raise RuntimeError(
