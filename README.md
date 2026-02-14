@@ -21,7 +21,7 @@ CEC is required.
 # Install on Debian / Raspberry Pi OS (no packaging)
 
 ```sh
-git clone --branch integration --single-branch https://github.com/Markkuuss/cec-mqtt-bridge.git /opt/cec-mqtt-bridge
+git clone --branch refactor/cec-trixie --single-branch https://github.com/Markkuuss/cec-mqtt-bridge.git /opt/cec-mqtt-bridge
 cd /opt/cec-mqtt-bridge/scripts
 chmod +x install.sh
 sudo ./install.sh
