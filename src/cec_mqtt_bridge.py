@@ -156,6 +156,7 @@ class HdmiCec:
                 mute, volume = self.decode_volume(int(cmd[9:], base=16))
                 self._mqtt_send("cec/audio/volume", volume)
                 self._mqtt_send("cec/audio/mute", "on" if mute else "off")
+                self.volume_update.set()
             elif opcode == cec.CEC_OPCODE_SET_SYSTEM_AUDIO_MODE:
                 self._mqtt_send("cec/device/5/power", "on" if int(cmd[9:], base=16) == 1 else "standby")
 
@@ -369,17 +370,13 @@ class Bridge:
     def __init__(self, config: dict):
         self.config = config
 
-        def mqtt_on_message(client: mqtt, userdata, message):
-            thread = threading.Thread(target=self.mqtt_on_message, args=(client, userdata, message))
-            thread.start()
-
         LOGGER.info("Initialising MQTT...")
         self.mqtt_client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=self.config["mqtt"]["name"],
         )
         self.mqtt_client.on_connect = self.mqtt_on_connect
-        self.mqtt_client.on_message = mqtt_on_message
+        self.mqtt_client.on_message = self.mqtt_on_message
         self.mqtt_client.on_disconnect = self.mqtt_on_disconnect
         self.mqtt_client.on_subscribe = self.mqtt_on_subscribe
         self.mqtt_client.on_publish = self.mqtt_on_publish
@@ -494,12 +491,27 @@ class Bridge:
 
     def mqtt_on_message(self, _client: mqtt, _userdata, message):
         try:
-            topic = message.topic.replace(self.config["mqtt"]["prefix"], "").split("/")[1:]
+            prefix = self.config["mqtt"]["prefix"] + "/"
+            if not message.topic.startswith(prefix):
+                LOGGER.debug("Ignoring topic outside prefix: %s", message.topic)
+                return
+
+            topic = message.topic[len(prefix):].split("/")
             action = message.payload.decode()
             LOGGER.debug("Command received: %s (%s)", topic, message.payload)
 
+            if not topic or topic[0] != "cec":
+                return
+
             if topic[0] == "cec":
+                if len(topic) < 2:
+                    LOGGER.debug("Ignoring incomplete CEC topic: %s", message.topic)
+                    return
+
                 if topic[1] == "device":
+                    if len(topic) < 4:
+                        LOGGER.debug("Ignoring incomplete device topic: %s", message.topic)
+                        return
                     device = int(topic[2])
                     if topic[3] == "power":
                         if action == "on":
@@ -515,6 +527,9 @@ class Bridge:
                             LOGGER.warning("Unknown key command: %s %s", topic, action)
 
                 elif topic[1] == "audio":
+                    if len(topic) < 3:
+                        LOGGER.debug("Ignoring incomplete audio topic: %s", message.topic)
+                        return
                     if topic[2] == "volume":
                         if action == "up":
                             self.cec_class.volume_up()
@@ -568,8 +583,8 @@ def main():
 
     if args.configfile:
         config_file = args.configfile
-    elif os.path.isfile("/etc/cec-mqtt-bridge.ini"):
-        config_file = "/etc/cec-mqtt-bridge.ini"
+    elif os.path.isfile("/etc/cec-mqtt-bridge/config.ini"):
+        config_file = "/etc/cec-mqtt-bridge/config.ini"
     else:
         config_file = "config.ini"
 

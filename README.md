@@ -21,17 +21,17 @@ CEC is required.
 # Install on Debian / Raspberry Pi OS (no packaging)
 
 ```sh
-git clone --branch refactor/cec-trixie --single-branch https://github.com/Markkuuss/cec-mqtt-bridge.git /opt/cec-mqtt-bridge
-cd /opt/cec-mqtt-bridge
+git clone https://github.com/Markkuuss/cec-mqtt-bridge.git ~/projects/cec-mqtt-bridge
+cd ~/projects/cec-mqtt-bridge
 chmod +x install.sh
-sudo ./install.sh
+sudo bash ./install.sh
 ```
 `install.sh` installs dependencies, copies the app to `/usr/local/lib/cec-mqtt-bridge`,
 installs the systemd unit, and starts the service.
 
 Edit the config:
 ```sh
-sudo nano /etc/cec-mqtt-bridge.ini
+sudo nano /etc/cec-mqtt-bridge/config.ini
 ```
 
 Start / restart:
@@ -42,10 +42,10 @@ sudo systemctl status cec-mqtt-bridge
 
 Update: pull the latest commit, then re-run the installer.
 ```sh
-cd /opt/cec-mqtt-bridge
+cd ~/projects/cec-mqtt-bridge
 git pull
 chmod +x install.sh
-sudo ./install.sh
+sudo bash ./install.sh
 ```
 
 Note: On Debian 13, `python3-cec` is not available; the installer builds libcec
@@ -58,39 +58,40 @@ The bridge subscribes to the following topics:
 
 | topic                       | body                                    | remark                                                                    |
 |:----------------------------|-----------------------------------------|---------------------------------------------------------------------------|
-| `prefix`/cec/device/`laddr`/power/set | `on` / `standby`              | Turn on/standby device with with logical address `laddr` (0-14).  |
-| `prefix`/cec/device/`laddr`/active/set | `yes` / `no`                 | activate/deactivate device with with logical address `laddr` (0-14).  |
+| `prefix`/cec/device/`laddr`/power/set | `on` / `standby`              | Turn on/standby device with logical address `laddr` (0-14).  |
 | `prefix`/cec/device/`laddr`/key/set | `key`                          | Send a CEC user control `key` to device `laddr` (0-14). Use `0xNN`, decimal, or a `CEC_USER_CONTROL_CODE_*` name without the prefix (e.g. `PLAY`). See https://github.com/Pulse-Eight/libcec/blob/master/include/cectypes.h#L634 |
-| `prefix`/cec/audio/volume/set     | `integer (0-100)` / `up` / `down` | Sets the volume level of the audio system to a specific level or up/down. |
-| `prefix`/cec/audio/mute/set       | `on` / `off`                      | Mute/Unmute the the audio system.                                         |
-| `prefix`/cec/tx             | `commands`                              | Send the specified `commands` to the CEC bus. You can specify multiple commands by separating them with a space. Example: `cec/tx 15:44:41,15:45`. |
+| `prefix`/cec/audio/volume/set     | `integer (0-100)` / `up` / `down` | Set the volume level of the audio system to a specific level or up/down. |
+| `prefix`/cec/audio/mute/set       | `on` / `off`                      | Mute/Unmute the audio system.                                             |
+| `prefix`/cec/refresh        | empty payload                              | Trigger a state refresh.                                                  |
+| `prefix`/cec/scan           | empty payload                              | Trigger a bus scan and publish device info.                               |
+| `prefix`/cec/tx             | `commands`                              | Send the specified `commands` to the CEC bus. You can specify multiple commands by separating them with a comma. Example: `15:44:41,15:45`. |
 
 The bridge publishes to the following topics:
 
 | topic                          | body                                    | remark                                           |
 |:-------------------------------|-----------------------------------------|--------------------------------------------------|
 | `prefix`/bridge/status               | `online` / `offline`                    | Report availability status of the bridge.        |
-| `prefix`/cec/device/`laddr`/type     | `on` / `off`                            | Report type of device with logical address `laddr` (0-14).      |
-| `prefix`/cec/device/`laddr`/address  | `on` / `off`                            | Report physical address of device with logical address `laddr` (0-14).  |
-| `prefix`/cec/device/`laddr`/active   | `yes` / `no`                            | Report active source status of device with logical address `laddr` (0-14).  |
+| `prefix`/cec/device/`laddr`/type     | `string`                            | Report type of device with logical address `laddr` (0-14).      |
+| `prefix`/cec/device/`laddr`/address  | `hex string`                            | Report physical address of device with logical address `laddr` (0-14).  |
+| `prefix`/cec/device/`laddr`/active   | `True` / `False`                            | Report active source status of device with logical address `laddr` (0-14).  |
 | `prefix`/cec/device/`laddr`/vendor   | `string`                            | Report vendor of device with logical address `laddr` (0-14).  |
 | `prefix`/cec/device/`laddr`/osd      | `string`                            | Report OSD of device with logical address `laddr` (0-14).  |
 | `prefix`/cec/device/`laddr`/cecver   | `string`                            | Report CEC version of device with logical address `laddr` (0-14).  |
-| `prefix`/cec/device/`laddr`/power    | `on` / `standby` / `toon` / `tostandby` / `unknown` | Report power status of device with logical address `laddr` (0-14).      |
-| `prefix`/cec/device/`laddr`/language | `string`                            | Report langauge of device with logical address `laddr` (0-14).  |
-| `prefix`/cec/audio/volume     | `integer (0-100)` /  `unknown = 127`                      | Report volume level of the audio system.         |
-| `prefix`/cec/mute/status       | `on` / `off`                            | Report mute status of the audio system.          |
+| `prefix`/cec/device/`laddr`/power    | `on` / `standby` / `in transition*` / `unknown` | Report power status of device with logical address `laddr` (0-14).      |
+| `prefix`/cec/audio/volume     | `integer (0-100)` / `127`                      | Report volume level of the audio system.         |
+| `prefix`/cec/audio/mute       | `on` / `off`                            | Report mute status of the audio system.          |
 | `prefix`/cec/rx                | `command`                               | Notify that `command` was received.              |
 
 `id` is the address (0-15) of the device on the CEC-bus.
 
 ## Examples
-* `mosquitto_pub -t cec-mqtt/cec/volup -m ''`
+* `mosquitto_pub -t cec-mqtt/cec/audio/volume/set -m 'up'`
+* `mosquitto_pub -t cec-mqtt/cec/device/0/power/set -m 'on'`
 * `mosquitto_pub -t cec-mqtt/cec/tx -m '15:44:42,15:45'`
 
 # Configuration
 
-The service reads `/etc/cec-mqtt-bridge.ini` by default. You can either copy
-`config/cec-mqtt-bridge.ini` to `/etc/cec-mqtt-bridge.ini` and adjust its
+The service reads `/etc/cec-mqtt-bridge/config.ini` by default. You can either copy
+`config.ini` to `/etc/cec-mqtt-bridge/config.ini` and adjust its
 properties, or alternatively declare any of those as environment variables
 using the format `SECTION_KEY` (e.g., `MQTT_USER`).
