@@ -1,15 +1,17 @@
 [Unit]
 Description=cec HDMI-CEC to MQTT bridge
-Wants=network-online.target
 After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/cec-mqtt-bridge
-Environment=PYTHONPATH=/opt/cec-mqtt-bridge/src
-ExecStart=/usr/bin/python3 -m cec_mqtt_bridge.bridge -f /etc/cec-mqtt-bridge.ini
-Restart=always
-RestartSec=300
+User=root
+WorkingDirectory=/usr/local/lib/cec-mqtt-bridge
+ExecStart=/usr/bin/python3 /usr/local/lib/cec-mqtt-bridge/cec_mqtt_bridge.py -f /etc/cec-mqtt-bridge.ini
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

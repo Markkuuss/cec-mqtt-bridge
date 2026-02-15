@@ -22,11 +22,12 @@ CEC is required.
 
 ```sh
 git clone --branch refactor/cec-trixie --single-branch https://github.com/Markkuuss/cec-mqtt-bridge.git /opt/cec-mqtt-bridge
-cd /opt/cec-mqtt-bridge/scripts
+cd /opt/cec-mqtt-bridge
 chmod +x install.sh
 sudo ./install.sh
 ```
-`install.sh` installs dependencies, updates the repo (`git pull`), installs the systemd unit, and starts the service.
+`install.sh` installs dependencies, copies the app to `/usr/local/lib/cec-mqtt-bridge`,
+installs the systemd unit, and starts the service.
 
 Edit the config:
 ```sh
@@ -39,9 +40,10 @@ sudo systemctl restart cec-mqtt-bridge
 sudo systemctl status cec-mqtt-bridge
 ```
 
-Update: re-run the installer (it runs `git pull` and restarts the service).
+Update: pull the latest commit, then re-run the installer.
 ```sh
-cd /opt/cec-mqtt-bridge/scripts
+cd /opt/cec-mqtt-bridge
+git pull
 chmod +x install.sh
 sudo ./install.sh
 ```
