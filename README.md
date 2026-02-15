@@ -13,7 +13,7 @@ CEC is required.
 
 # Dependencies
 
-* MQTT broker (Mosquitto)
+* MQTT broker (external or local)
 * python3-paho-mqtt
 * libcec + Python bindings (the installer builds them if missing; Debian 13 has no `python3-cec`)
 * HDMI-CEC interface device (Raspberry Pi HDMI-CEC or a Pulse-Eight adapter)
@@ -26,8 +26,8 @@ cd ~/projects/cec-mqtt-bridge
 chmod +x install.sh
 sudo bash ./install.sh
 ```
-`install.sh` installs dependencies, copies the app to `/usr/local/lib/cec-mqtt-bridge`,
-installs the systemd unit, and starts the service.
+`install.sh` installs required dependencies for the bridge, copies the app to `/usr/local/lib/cec-mqtt-bridge`,
+installs the systemd unit, and starts the service. It does not install a local MQTT broker.
 
 Edit the config:
 ```sh

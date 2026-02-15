@@ -21,7 +21,7 @@ cd "${REPO_ROOT}"
 
 echo "[1/8] Install dependencies"
 apt-get update
-apt-get install -y git python3 python3-paho-mqtt mosquitto
+apt-get install -y git python3 python3-paho-mqtt
 
 echo "[2/8] Install/ensure CEC Python bindings"
 if ! python3 - <<'PY' >/dev/null 2>&1
