@@ -26,10 +26,6 @@ cd ~/projects/cec-mqtt-bridge
 chmod +x install.sh
 sudo ./install.sh
 ```
-Alternative without execute bit:
-```sh
-sudo bash ./install.sh
-```
 `install.sh` installs required dependencies for the bridge, copies the app to `/usr/local/lib/cec-mqtt-bridge`,
 installs the systemd unit, and starts the service. It does not install a local MQTT broker.
 
