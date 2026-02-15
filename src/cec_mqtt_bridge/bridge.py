@@ -167,7 +167,9 @@ class Bridge:
         # Publish birth message
         self.mqtt_publish("bridge/status", "online", qos=1, retain=True)
 
-    def mqtt_on_disconnect(self, _client: mqtt, _userdata, reason_code, _properties):
+    def mqtt_on_disconnect(
+        self, _client: mqtt, _userdata, _disconnect_flags, reason_code, _properties
+    ):
         """MQTT on disconnect callback."""
         if reason_code == 0:
             LOGGER.info("Disconnected cleanly")
