@@ -24,6 +24,10 @@ CEC is required.
 git clone --branch refactor/cec-trixie-singlefile --single-branch https://github.com/Markkuuss/cec-mqtt-bridge.git ~/projects/cec-mqtt-bridge
 cd ~/projects/cec-mqtt-bridge
 chmod +x install.sh
+sudo ./install.sh
+```
+Alternative without execute bit:
+```sh
 sudo bash ./install.sh
 ```
 `install.sh` installs required dependencies for the bridge, copies the app to `/usr/local/lib/cec-mqtt-bridge`,
@@ -45,7 +49,7 @@ Update: pull the latest commit, then re-run the installer.
 cd ~/projects/cec-mqtt-bridge
 git pull
 chmod +x install.sh
-sudo bash ./install.sh
+sudo ./install.sh
 ```
 
 Note: On Debian 13, `python3-cec` is not available; the installer builds libcec
