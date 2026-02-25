@@ -164,13 +164,65 @@ class HdmiCec:
 
     def power_on(self, device: int):
         LOGGER.debug("Power on device %d", device)
-        self._mqtt_send(f"cec/device/{device}/power", "on")
         self.cec_client.PowerOnDevices(device)
+        threading.Thread(
+            target=self._publish_verified_power_status,
+            args=(device,),
+            daemon=True,
+        ).start()
 
     def power_off(self, device: int):
         LOGGER.debug("Power off device %d", device)
-        self._mqtt_send(f"cec/device/{device}/power", "standby")
         self.cec_client.StandbyDevices(device)
+        threading.Thread(
+            target=self._publish_verified_power_status,
+            args=(device,),
+            daemon=True,
+        ).start()
+
+    def _publish_verified_power_status(
+        self,
+        device: int,
+        initial_delay: float = 1.5,
+        poll_gap: float = 1.0,
+        max_polls: int = 8,
+    ):
+        time.sleep(max(initial_delay, 0.0))
+
+        previous_status = None
+        stable_reads = 0
+        last_status = None
+
+        for poll_idx in range(max(1, max_polls)):
+            power = self.cec_client.GetDevicePowerStatus(device)
+            current_status = self.cec_client.PowerStatusToString(power)
+            last_status = current_status
+
+            if current_status == previous_status:
+                stable_reads += 1
+            else:
+                stable_reads = 1
+                previous_status = current_status
+
+            if stable_reads >= 2:
+                LOGGER.debug(
+                    "Verified stable power status for device %d after poll %d: %s",
+                    device,
+                    poll_idx + 1,
+                    current_status,
+                )
+                self._mqtt_send(f"cec/device/{device}/power", current_status)
+                return
+
+            if poll_idx < max_polls - 1:
+                time.sleep(max(poll_gap, 0.0))
+
+        LOGGER.warning(
+            "Power status for device %d remained unstable after %d polls (last=%s); skipping forced publish",
+            device,
+            max_polls,
+            last_status,
+        )
 
     def _parse_key_code(self, key: str) -> int:
         key_value = key.strip()
