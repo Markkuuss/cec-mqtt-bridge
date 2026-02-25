@@ -369,6 +369,7 @@ class Bridge:
 
     def __init__(self, config: dict):
         self.config = config
+        self.cec_class = None
 
         LOGGER.info("Initialising MQTT...")
         self.mqtt_client = mqtt.Client(
@@ -499,6 +500,13 @@ class Bridge:
             topic = message.topic[len(prefix):].split("/")
             action = message.payload.decode()
             LOGGER.debug("Command received: %s (%s)", topic, message.payload)
+
+            if self.cec_class is None:
+                LOGGER.warning(
+                    "Ignoring MQTT command before CEC is ready: %s",
+                    message.topic,
+                )
+                return
 
             if not topic or topic[0] != "cec":
                 return
