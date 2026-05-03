@@ -69,6 +69,8 @@ class HdmiCec:
         self.refreshing = False
         self.volume_update = threading.Event()
         self.volume_update.clear()
+        self._power_status_events = {}
+        self._power_status_values = {}
         self._key_lock = threading.Lock()
 
         self.cec_config = cec.libcec_configuration()
@@ -136,14 +138,14 @@ class HdmiCec:
         )
         self._mqtt_send("cec/rx", cmd[3:])
 
-        if not self.refreshing:
-            if opcode == cec.CEC_OPCODE_REPORT_POWER_STATUS:
-                power = int(cmd[9:], base=16)
-                self._mqtt_send(
-                    f"cec/device/{initiator}/power",
-                    self.cec_client.PowerStatusToString(power),
-                )
-            elif opcode == cec.CEC_OPCODE_DEVICE_VENDOR_ID:
+        if opcode == cec.CEC_OPCODE_REPORT_POWER_STATUS:
+            power = int(cmd[9:], base=16)
+            power_status = self.cec_client.PowerStatusToString(power)
+            self._power_status_values[initiator] = power_status
+            self._power_status_events.setdefault(initiator, threading.Event()).set()
+            self._mqtt_send(f"cec/device/{initiator}/power", power_status)
+        elif not self.refreshing:
+            if opcode == cec.CEC_OPCODE_DEVICE_VENDOR_ID:
                 vendor_id = int((cmd[9:]).replace(":", ""), base=16)
                 self._mqtt_send(
                     f"cec/device/{initiator}/vendor",
@@ -180,6 +182,19 @@ class HdmiCec:
             daemon=True,
         ).start()
 
+    def _query_power_status(self, device: int, timeout: float = 1.0, publish_unknown: bool = False):
+        power_event = self._power_status_events.setdefault(device, threading.Event())
+        power_event.clear()
+        self.tx_command("8f", device)
+
+        if power_event.wait(max(timeout, 0.1)):
+            return self._power_status_values.get(device)
+
+        LOGGER.debug("No power status response from device %d within %.1fs", device, timeout)
+        if publish_unknown:
+            self._mqtt_send(f"cec/device/{device}/power", "unknown")
+        return None
+
     def _publish_verified_power_status(
         self,
         device: int,
@@ -194,8 +209,14 @@ class HdmiCec:
         last_status = None
 
         for poll_idx in range(max(1, max_polls)):
-            power = self.cec_client.GetDevicePowerStatus(device)
-            current_status = self.cec_client.PowerStatusToString(power)
+            current_status = self._query_power_status(device, timeout=poll_gap, publish_unknown=False)
+            if current_status is None:
+                stable_reads = 0
+                previous_status = None
+                if poll_idx < max_polls - 1:
+                    time.sleep(max(poll_gap, 0.0))
+                continue
+
             last_status = current_status
 
             if current_status == previous_status:
@@ -370,25 +391,23 @@ class HdmiCec:
 
         LOGGER.debug("Refreshing HDMI-CEC...")
         self.refreshing = True
-        for device in self.devices:
-            physical_address = self.cec_client.GetDevicePhysicalAddress(device)
-            if physical_address != 0xFFFF:
-                power = self.cec_client.GetDevicePowerStatus(device)
-                power_str = self.cec_client.PowerStatusToString(power)
-                LOGGER.debug(
-                    "device %d %04x %-12s power %d %s",
-                    device,
-                    physical_address,
-                    self.cec_client.LogicalAddressToString(device),
-                    power,
-                    power_str,
-                )
-                self._mqtt_send(f"cec/device/{device}/power", power_str)
+        try:
+            for device in self.devices:
+                physical_address = self.cec_client.GetDevicePhysicalAddress(device)
+                if physical_address != 0xFFFF:
+                    LOGGER.debug(
+                        "device %d %04x %-12s requesting power status",
+                        device,
+                        physical_address,
+                        self.cec_client.LogicalAddressToString(device),
+                    )
+                    self._query_power_status(device, publish_unknown=True)
 
-        mute, volume = self.decode_volume(self.cec_client.AudioStatus())
-        self._mqtt_send("cec/audio/volume", volume)
-        self._mqtt_send("cec/audio/mute", "on" if mute else "off")
-        self.refreshing = False
+            mute, volume = self.decode_volume(self.cec_client.AudioStatus())
+            self._mqtt_send("cec/audio/volume", volume)
+            self._mqtt_send("cec/audio/mute", "on" if mute else "off")
+        finally:
+            self.refreshing = False
 
     def scan(self):
         LOGGER.debug("requesting CEC bus information ...")
